@@ -16,7 +16,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, messages_to_dict
 
 from agent import BENCHMARK_DIR, build_agent, build_task_message
 from prompts import PROMPTS
@@ -27,6 +27,8 @@ VARIANTS = ["A", "B"]
 # One JSON object per line ("JSON Lines"): we can append a trial without
 # rewriting the whole file, and a crash never loses the trials already done.
 RESULTS_FILE = Path(__file__).resolve().parent / "results" / "results.jsonl"
+# One JSON file per trial with every message exchanged, to understand failures afterwards.
+TRANSCRIPTS_DIR = RESULTS_FILE.parent / "transcripts"
 
 
 def tests_pass(repo_dir):
@@ -41,8 +43,11 @@ def tests_pass(repo_dir):
     return result.returncode == 0
 
 
-def run_trial(task_dir, variant):
-    """Run one trial of `variant` on the task in `task_dir`, and return its result as a dict."""
+def run_trial(task_dir, variant, transcript_path):
+    """Run one trial of `variant` on the task in `task_dir`, and return its result as a dict.
+
+    Every message of the trial is saved to `transcript_path`.
+    """
     original_repo = task_dir / "repo"  # never modified: the reference copy
     original_tests = sorted(original_repo.glob("test_*.py"))
 
@@ -61,6 +66,9 @@ def run_trial(task_dir, variant):
         final_state = agent.invoke(initial_state, {"recursion_limit": 50})
         end = time.perf_counter()
         duration = end-start
+
+        with open(transcript_path, "w") as f:
+            json.dump(messages_to_dict(final_state["messages"]), f, indent=2)
 
         # TODO 2: did the model modify the tests?
         # - For each file in `original_tests`, compare its content with the file
@@ -95,7 +103,8 @@ def run_trial(task_dir, variant):
         "success" : success, 
         "tests_modified" : tests_modified, 
         "steps" : final_state["steps"], 
-        "duration" : round(duration, 1)
+        "duration" : round(duration, 1),
+        "transcript" : transcript_path.name
         }
 
 
@@ -136,7 +145,7 @@ def summarize(results):
 if __name__ == "__main__":
     n_trials = int(sys.argv[1]) if len(sys.argv) > 1 else N_TRIALS
     tasks = sorted(p for p in BENCHMARK_DIR.iterdir() if p.is_dir())
-    RESULTS_FILE.parent.mkdir(exist_ok=True)
+    TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
 
     results = []
     total = len(tasks) * len(VARIANTS) * n_trials
@@ -153,8 +162,10 @@ if __name__ == "__main__":
     for task in tasks:
         for variant in VARIANTS:
             for _ in range(n_trials):
+                # The trial number makes the name unique: "012_03_normalize_B.json"
+                transcript_path = TRANSCRIPTS_DIR / f"{i:03d}_{task.name}_{variant}.json"
                 try:
-                    result = run_trial(task_dir=task, variant=variant)
+                    result = run_trial(task_dir=task, variant=variant, transcript_path=transcript_path)
                 except Exception as e:
                     result = {
                         "task" : task.name, 
@@ -163,6 +174,7 @@ if __name__ == "__main__":
                         "tests_modified" : None, 
                         "steps" : None, 
                         "duration" : None,
+                        "transcript" : None,
                         "error": str(e)
                         }
                     
