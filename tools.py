@@ -10,11 +10,23 @@ can read it and try again instead of crashing the whole trial.
 
 import subprocess
 import sys
+import difflib
 from pathlib import Path
 
 from langchain_core.tools import tool
 
 MAX_OUTPUT_CHARS = 3000  # keep pytest output short: a 7B model has a small context
+
+def closest_match(content, old_text):
+    content_lines = content.splitlines()
+    old_text_lines = old_text.splitlines()
+    n = len(old_text_lines)
+    candidates = []
+    for i in range(len(content_lines) - n + 1):
+        candidates.append("\n".join(content_lines[i:i+n]))
+    res = difflib.get_close_matches(old_text, candidates, n=1)
+    return res[0] if res != [] else None
+        
 
 
 def make_tools(repo_dir):
@@ -50,7 +62,10 @@ def make_tools(repo_dir):
 
         count = content.count(old_text)
         if count == 0:
-            return "Error: old_text was not found. Read the file again and copy the text exactly."
+            match = closest_match(content, old_text)
+            if match == None : 
+                return "Error: old_text was not found. Read the file again and copy the text exactly."
+            return f"Error: old_text was not found. The closest text in the file is: \n ```\n{match}\n```\nCopy it exactly (same indentation) as old_text."
         if count > 1:
             return f"Error: old_text appears {count} times. Include more lines to make it unique."
 

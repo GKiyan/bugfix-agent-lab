@@ -23,6 +23,7 @@ MAX_STEPS = 10  # max number of LLM calls per trial
 BENCHMARK_DIR = Path(__file__).resolve().parent / "benchmark"
 
 
+
 class AgentState(TypedDict):
     # The whole conversation. `add_messages` means: when a node returns
     # {"messages": [...]}, the new messages are APPENDED, not replacing the list.
@@ -31,9 +32,9 @@ class AgentState(TypedDict):
     steps: int
 
 
-def build_agent(tools, system_prompt, model=MODEL, temperature=0.7):
+def build_agent(tools, system_prompt, model=MODEL, temperature=0.7, num_predict=1000):
     """Build and compile the graph for one trial."""
-    llm = ChatOllama(model=model, temperature=temperature).bind_tools(tools)
+    llm = ChatOllama(model=model, temperature=temperature, num_predict=num_predict).bind_tools(tools)
     tools_by_name = {t.name: t for t in tools}
 
     def call_model(state: AgentState):
