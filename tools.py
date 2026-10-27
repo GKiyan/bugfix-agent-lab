@@ -89,10 +89,13 @@ def make_tools(repo_dir):
                 content_lines[i:i+n] = new_text
                 full.write_text("\n".join(content_lines) + (("\n") if content.endswith("\n") else ""))
                 return f"Successfully edited {path}."
-            match = closest_match(content, old_text)
-            if match == None : 
-                return "Error: old_text was not found. Read the file again and copy the text exactly."
-            return f"Error: old_text was not found. The closest text in the file is: \n ```\n{match}\n```\nCopy it exactly (same indentation) as old_text."
+            count_new = content.count(new_text)
+            if (count_new == 0): 
+                match = closest_match(content, old_text)
+                if match == None : 
+                    return "Error: old_text was not found. Read the file again and copy the text exactly."
+                return f"Error: old_text was not found. The closest text in the file is: \n ```\n{match}\n```\nCopy it exactly (same indentation) as old_text."
+            return "Error: old_text was not found, but new_text is already in the file: this edit was probably already applied. Do not repeat it. Run the tests to check."
         if count > 1:
             return f"Error: old_text appears {count} times. Include more lines to make it unique."
 
