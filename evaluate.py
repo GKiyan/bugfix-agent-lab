@@ -23,7 +23,7 @@ from prompts import PROMPTS
 from tools import make_tools
 
 N_TRIALS = 15
-VARIANTS = ["A", "B"]
+VARIANTS = ["A", "B", "C"]
 # One JSON object per line ("JSON Lines"): we can append a trial without
 # rewriting the whole file, and a crash never loses the trials already done.
 RESULTS_FILE = Path(__file__).resolve().parent / "results" / "results.jsonl"
