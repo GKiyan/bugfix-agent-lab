@@ -11,6 +11,7 @@ can read it and try again instead of crashing the whole trial.
 import subprocess
 import sys
 import difflib
+import textwrap
 from pathlib import Path
 
 from langchain_core.tools import tool
@@ -26,7 +27,22 @@ def closest_match(content, old_text):
         candidates.append("\n".join(content_lines[i:i+n]))
     res = difflib.get_close_matches(old_text, candidates, n=1)
     return res[0] if res != [] else None
-        
+
+
+def find_loose(content_lines, old_lines):
+    striped = [line.strip() for line in old_lines]
+    if [line for line in striped if line] == []:
+        return None 
+    n = len(old_lines)
+    indices = []
+    for i in range(len(content_lines) - n + 1):
+        window = content_lines[i:i+n]
+        if [line.strip() for line in window] == striped:
+            indices.append(i)
+    if len(indices) == 1:
+        return indices[0]
+    return None
+    
 
 
 def make_tools(repo_dir):
@@ -62,6 +78,17 @@ def make_tools(repo_dir):
 
         count = content.count(old_text)
         if count == 0:
+            content_lines = content.splitlines()
+            old_text_lines = old_text.splitlines()
+            i = find_loose(content_lines, old_text_lines)
+            if i is not None:
+                l = content_lines[i]
+                n = len(old_text_lines)
+                indentation = len(l) - len(l.lstrip())
+                new_text = [((" " * indentation) + line) for line in textwrap.dedent(new_text).splitlines()]
+                content_lines[i:i+n] = new_text
+                full.write_text("\n".join(content_lines) + (("\n") if content.endswith("\n") else ""))
+                return f"Successfully edited {path}."
             match = closest_match(content, old_text)
             if match == None : 
                 return "Error: old_text was not found. Read the file again and copy the text exactly."
