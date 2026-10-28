@@ -44,8 +44,8 @@ def parse_text_tool_calls(message, tool_names):
         except json.JSONDecodeError:
             i = str.find(message, "{", i+1)
             continue
-        if isinstance(obj, dict) and obj.get("name") in tool_names and  isinstance(obj.get("arguments"), dict):
-            calls.append({"name": obj.get("name"), "args": obj.get("arguments"), "id": f"text_call_{len(calls)}"})
+        if isinstance(obj, dict) and obj.get("name") in tool_names and  isinstance(obj.get("arguments", {}), dict):
+            calls.append({"name": obj.get("name"), "args": obj.get("arguments", {}), "id": f"text_call_{len(calls)}"})
         i = message.find("{", end)
     return calls
     
