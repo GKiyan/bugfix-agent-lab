@@ -7,6 +7,8 @@ Usage (runs one trial on one task, in a temporary copy of the repo):
 import shutil
 import sys
 import tempfile
+import json
+
 from pathlib import Path
 from typing import Annotated, TypedDict
 
@@ -31,6 +33,22 @@ class AgentState(TypedDict):
     # Number of LLM calls so far. No annotation: a returned value REPLACES the old one.
     steps: int
 
+def parse_text_tool_calls(message, tool_names):
+    """Find tool calls written as JSON text, e.g. {"name": "run_tests", "arguments": {}}."""
+    decoder = json.JSONDecoder()
+    i = str.find(message, "{")
+    calls = []
+    while i >= 0:
+        try:  
+            obj, end = decoder.raw_decode(message, i)
+        except json.JSONDecodeError:
+            i = str.find(message, "{", i+1)
+            continue
+        if isinstance(obj, dict) and obj.get("name") in tool_names and  isinstance(obj.get("arguments"), dict):
+            calls.append({"name": obj.get("name"), "args": obj.get("arguments"), "id": f"text_call_{len(calls)}"})
+        i = message.find("{", end)
+    return calls
+    
 
 def build_agent(tools, system_prompt, model=MODEL, temperature=0.7, num_predict=1000):
     """Build and compile the graph for one trial."""
@@ -40,6 +58,11 @@ def build_agent(tools, system_prompt, model=MODEL, temperature=0.7, num_predict=
     def call_model(state: AgentState):
         """Node "agent": ask the LLM what to do next."""
         message = llm.invoke([SystemMessage(system_prompt)] + state["messages"])
+        if message.tool_calls == []:
+            calls = parse_text_tool_calls(message.content, tools_by_name)
+            if (calls != []):
+                message.tool_calls = calls
+            
         return {"messages": [message], "steps": state["steps"]+1}
 
     def call_tools(state: AgentState):
