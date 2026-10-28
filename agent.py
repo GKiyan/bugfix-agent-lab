@@ -20,7 +20,7 @@ from langgraph.graph.message import add_messages
 from prompts import PROMPTS
 from tools import make_tools
 
-MODEL = "qwen2.5-coder:7b"
+MODEL = "qwen2.5:14b"
 MAX_STEPS = 10  # max number of LLM calls per trial
 BENCHMARK_DIR = Path(__file__).resolve().parent / "benchmark"
 
