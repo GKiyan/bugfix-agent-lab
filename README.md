@@ -126,3 +126,11 @@ or repeated gaps mean something.
 
 Ideas not tried: make `edit_file` refuse to modify `test_*.py`, tune
 `temperature` / `repeat_penalty` against the token repeat errors.
+
+## How it was built
+
+Built as a learning project with [Claude Code](https://claude.com/claude-code)
+as a tutor: I wrote the agent, the evaluation script and the tools, and chose
+the experiments; Claude guided the design, reviewed the code, and wrote
+prompt C and this README. That is why Claude appears as co-author on the
+commits.
