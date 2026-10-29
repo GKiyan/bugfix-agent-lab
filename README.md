@@ -89,7 +89,7 @@ interval of the difference itself is needed (Newcombe's method):
 
 | Comparison | Difference | 95% CI |
 |---|---|---|
-| 14B, B − A | +16 points | 0 to +31 |
+| 14B, B − A | +12 points | 0 to +31 |
 | 14B, C − A | +13 points | −2 to +28 |
 | 7B (`results_content`), B − A | +9 points | −5 to +24 |
 | 7B → 14B, all variants (71/225 → 106/225) | +16 points | +7 to +24 |
@@ -117,7 +117,7 @@ large or repeated gaps mean something.
   the model's behavior, because the model reacts to what tools return.
 - **A 7B model ignores prompt rules when it needs them.** Prompt C's rules
   were almost never applied (re-reading the file after an error, only 4 times
-  out of 68...), and A vs B stayed within noise with the 7B models.
+  out of 68 edits), and A vs B stayed within noise with the 7B models.
 - **Code specialization did not help at 7B.** `qwen2.5-coder:7b` wrote its tool
   calls as text, edited the test files despite the prompt, and hit the step
   limit in 157 of 225 trials.
