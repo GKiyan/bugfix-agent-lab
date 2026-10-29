@@ -9,6 +9,7 @@ Usage:
 """
 
 import json
+import math
 import shutil
 import subprocess
 import sys
@@ -94,6 +95,15 @@ def run_trial(task_dir, variant, transcript_path):
         }
 
 
+def wilson(k, n, z=1.96):
+    """Return the (low, high) Wilson interval for k successes out of n (95% with z=1.96)."""
+    p_ = k / n
+    d = 1 + z**2 / n
+    centre = (p_ + z**2 / (2 * n)) / d
+    marge = (z / d) * math.sqrt(p_ * (1 - p_) / n + z**2/(4 * n**2))
+    return (max(0, centre - marge), min(1, centre + marge))
+
+
 def summarize(results):
     """Print one line per (task, variant): success rate, tests modified, average steps."""
     def show_stats(label, group):
@@ -104,7 +114,8 @@ def summarize(results):
         else : 
             step_mean = "-"
         n_modified = sum(r["tests_modified"] for r in group if r["tests_modified"] is not None)
-        print(f"{label}: {n_success}/{len(group)}, {n_modified} tests modified, {step_mean} steps avg")
+        low, high = wilson(n_success, len(group))
+        print(f"{label}: {n_success}/{len(group)} (95% CI {low:.0%}-{high:.0%}), {n_modified} tests modified, {step_mean} steps avg")
         
     res = {}
     for result in results:

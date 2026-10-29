@@ -70,17 +70,29 @@ number, so rename `results/` before starting a new run.
 ## Results
 
 Every run changes **one thing** compared to the previous one, and is kept in
-its own folder. Successes out of 75 trials per variant (15 per task):
+its own folder. Successes out of 75 trials per variant (15 per task), with
+the 95% confidence interval of the success rate (Wilson interval, computed by
+`wilson()` in `evaluate.py`):
 
 | Run | Change | Model | A | B | C |
 |---|---|---|---|---|---|
-| `results_strict` | first run (stopped at 91 trials) | qwen2.5:7b | 10/46 | 15/45 | |
-| `results_loose` | `edit_file` tolerates missing indentation | qwen2.5:7b | 25 | 24 | |
-| `results_already` | `edit_file` says when an edit was already applied | qwen2.5:7b | 21 | 24 | |
-| `results_c` | prompt C | qwen2.5:7b | | | 22 |
-| `results_content` | `edit_file` errors show the current file content | qwen2.5:7b | 20 | 27 | 24 |
-| `results_coder` | code-specialized model | qwen2.5-coder:7b | 12 | 21 | 17 |
-| `results_14b` | bigger model | qwen2.5:14b | **28** | **40** | **38** |
+| `results_strict` | first run (stopped at 91 trials) | qwen2.5:7b | 10/46 (12–36%) | 15/45 (21–48%) | |
+| `results_loose` | `edit_file` tolerates missing indentation | qwen2.5:7b | 25 (24–45%) | 24 (23–43%) | |
+| `results_already` | `edit_file` says when an edit was already applied | qwen2.5:7b | 21 (19–39%) | 24 (23–43%) | |
+| `results_c` | prompt C | qwen2.5:7b | | | 22 (20–40%) |
+| `results_content` | `edit_file` errors show the current file content | qwen2.5:7b | 20 (18–38%) | 27 (26–47%) | 24 (23–43%) |
+| `results_coder` | code-specialized model | qwen2.5-coder:7b | 12 (9–26%) | 21 (19–39%) | 17 (15–33%) |
+| `results_14b` | bigger model | qwen2.5:14b | **28** (27–49%) | **40** (42–64%) | **38** (40–62%) |
+
+Overlapping intervals do not mean there is no difference: for that, the
+interval of the difference itself is needed (Newcombe's method):
+
+| Comparison | Difference | 95% CI |
+|---|---|---|
+| 14B, B − A | +16 points | 0 to +31 |
+| 14B, C − A | +13 points | −2 to +28 |
+| 7B (`results_content`), B − A | +9 points | −5 to +24 |
+| 7B → 14B, all variants (71/225 → 106/225) | +16 points | +7 to +24 |
 
 Per task, 7B (`results_content`) vs 14B (`results_14b`), successes out of 15:
 
@@ -92,8 +104,9 @@ Per task, 7B (`results_content`) vs 14B (`results_14b`), successes out of 15:
 | `04_word_stats` | 1 / 4 / 2 | 2 / 3 / 4 |
 | `05_cart` | 1 / 0 / 0 | 2 / 3 / 2 |
 
-Rerunning the same setup moves a task's score by about ±4/15, so only large
-or repeated gaps mean something.
+With 15 trials, a task's interval is wide: 7/15 gives 25–70%, 14/15 gives
+70–99%. Rerunning the same setup moves a task's score by about ±4/15, so only
+large or repeated gaps mean something.
 
 ## What I learned
 
@@ -103,18 +116,24 @@ or repeated gaps mean something.
   current file content, "this edit was probably already applied") changed
   the model's behavior, because the model reacts to what tools return.
 - **A 7B model ignores prompt rules when it needs them.** Prompt C's rules
-  were almost never applied (re-reading the file after an error: 4 times out
-  of 68), and A vs B stayed within noise with the 7B models.
+  were almost never applied (re-reading the file after an error, only 4 times
+  out of 68...), and A vs B stayed within noise with the 7B models.
 - **Code specialization did not help at 7B.** `qwen2.5-coder:7b` wrote its tool
   calls as text, edited the test files despite the prompt, and hit the step
   limit in 157 of 225 trials.
 - **Model size was the only big jump**: 71 → 106 successes out of 225 from 7B
-  to 14B. With the 14B, prompt B is clearly better than A (+12), and the model
+  to 14B. With the 14B, prompt B is probably better than A (+12), and the model
   starts finding the bug in `money.py` on `05_cart` (edited in 16/41 trials vs
   3/45 with the 7B). Debugging bugs whose cause is in another file
   (`04_word_stats`, `05_cart`) remains the weak point.
 - **Measure, don't trust.** The agent often announces a fix it did not make;
   only re-running the original tests outside the agent gives a real score.
+- **A gap is not a proof.** Before computing Wilson's confidence interval,
+  I thought prompt B was far better than A with the 14B (40/75 vs 28/75).
+  The 95% confidence interval of the difference goes from 0 to 31 points,
+  so B is probably better, but it is not proven. With 15 trials per task,
+  an interval like 7/15 still spans 25 to 70%, so a gap on a single task
+  means almost nothing.
 
 ## Limits
 
@@ -132,5 +151,5 @@ Ideas not tried: make `edit_file` refuse to modify `test_*.py`, tune
 Built as a learning project with [Claude Code](https://claude.com/claude-code)
 as a tutor: I wrote the agent, the evaluation script and the tools, and chose
 the experiments; Claude guided the design, reviewed the code, and wrote
-prompt C and this README. That is why Claude appears as co-author on the
-commits.
+prompt C and this README (except the "What I learned" part). That is why
+Claude appears as co-author on the commits.
