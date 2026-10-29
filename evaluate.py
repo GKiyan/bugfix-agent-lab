@@ -55,11 +55,7 @@ def run_trial(task_dir, variant, transcript_path):
         repo_dir = Path(tmp) / "repo"
         shutil.copytree(original_repo, repo_dir)
 
-        # TODO 1: run the agent on the copy, and measure how long it takes.
-        # - Same thing as the `__main__` block of agent.py: build the agent,
-        #   build the initial state, call agent.invoke(...) with the same recursion_limit.
-        # - Measure the duration: start = time.perf_counter() before, and the
-        #   difference after.
+        # Run the agent on the copy and measure how long it takes.
         agent = build_agent(make_tools(repo_dir), PROMPTS[variant])
         initial_state = {"messages": [HumanMessage(build_task_message(task_dir, repo_dir))], "steps": 0}
         start = time.perf_counter()
@@ -70,12 +66,7 @@ def run_trial(task_dir, variant, transcript_path):
         with open(transcript_path, "w") as f:
             json.dump(messages_to_dict(final_state["messages"]), f, indent=2)
 
-        # TODO 2: did the model modify the tests?
-        # - For each file in `original_tests`, compare its content with the file
-        #   of the same name in `repo_dir` (hint: path.name, path.read_text()).
-        # - Careful: the model could also have broken a test file badly. If the
-        #   copy no longer exists, count it as modified too (hint: path.exists()).
-        # - Result: a bool `tests_modified`.
+        # Did the model modify the tests? A deleted test file counts as modified.
         tests_modified = False
         for path in original_tests: 
             repo_path = repo_dir / path.name
@@ -84,19 +75,14 @@ def run_trial(task_dir, variant, transcript_path):
                 break
                 
 
-        # TODO 3: restore the original tests, then judge the trial ourselves.
-        # - Copy every file of `original_tests` back into `repo_dir` (hint: shutil.copy).
-        # - success = tests_pass(repo_dir)
-        # - This MUST happen inside the `with`: why?
+        # Restore the original tests, then judge the trial ourselves.
+        # This must stay inside the `with`: the copy is deleted when it ends.
         if tests_modified:
             for path in original_tests: 
                 repo_path = repo_dir / path.name
                 shutil.copy(path, repo_path) 
         success = tests_pass(repo_dir)
 
-    # TODO 4: return the result of the trial as a dict, with at least the keys:
-    # "task", "variant", "success", "tests_modified", "steps", "duration".
-    # (hint: task_dir.name is the task name; the step count is in the final state)
     return {
         "task" : task_dir.name, 
         "variant" : variant, 
@@ -110,12 +96,6 @@ def run_trial(task_dir, variant, transcript_path):
 
 def summarize(results):
     """Print one line per (task, variant): success rate, tests modified, average steps."""
-    # TODO 6: group the results by (task, variant), then print for each group:
-    # - the success rate, e.g. "11/15"
-    # - how many trials modified the tests
-    # - the average number of LLM calls
-    # Then one final line per variant, all tasks together.
-    # (hint: a dict whose keys are (task, variant) tuples and values are lists of results)
     def show_stats(label, group):
         n_success = sum(r["success"] for r in group)
         step = [r["steps"] for r in group if r["steps"] is not None]
@@ -149,14 +129,8 @@ if __name__ == "__main__":
 
     results = []
     total = len(tasks) * len(VARIANTS) * n_trials
-    # TODO 5: the main loop.
-    # - For every task, every variant, and n_trials times: call run_trial(...).
-    # - If the trial crashes (Ollama down, unexpected error...), do NOT stop the
-    #   whole evaluation: record it as a failure, with the error message in an
-    #   "error" key (same idea as the try/except of call_tools in agent.py).
-    # - Append the result to `results`, AND write it immediately to RESULTS_FILE
-    #   as one line: open the file in append mode ("a") and write json.dumps(result) + "\n".
-    # - Print one progress line per trial, e.g. "[12/150] 03_normalize B: success (6 steps, 41s)".
+    # Every task, every variant, n_trials times. A crashed trial is recorded as a failure
+    # with its error message, and each result is written to RESULTS_FILE immediately.
     i = 1
     n_total = len(tasks) * len(VARIANTS) * n_trials
     for task in tasks:
